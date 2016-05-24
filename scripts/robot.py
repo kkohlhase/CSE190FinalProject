@@ -6,16 +6,16 @@
 #Amy Han
 
 import rospy
-from read_config import read_config
+
 
 
 class Robot():
 
     def __init__(self):
-        """Read config file and setup ROS things"""
+        """Setup ROS things"""
         
         rospy.init_node('robot')
-        self.config = read_config()
+       
 
         self.simComplete_publisher = rospy.Publisher(
 			"/sim_complete",
@@ -26,6 +26,7 @@ class Robot():
         rospy.sleep(1)
 
         #call Astar here
+
 
         #call MDP here
 
