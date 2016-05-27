@@ -6,6 +6,8 @@
 #Amy Han
 
 import rospy
+from mdp import Mdp
+from std_msgs.msg import Bool
 
 
 
@@ -18,7 +20,7 @@ class Robot():
        
 
         self.simComplete_publisher = rospy.Publisher(
-			"/sim_complete",
+			"/map_node/sim_complete",
 			Bool,
 			queue_size = 10
 		)
@@ -26,9 +28,9 @@ class Robot():
         rospy.sleep(1)
 
         #call Astar here
-
-
+        
         #call MDP here
+        Mdp()
 
         rospy.sleep(1)
 
@@ -41,8 +43,6 @@ class Robot():
 
 
      
-
-
 
 if __name__ == '__main__':
      rb = Robot()
