@@ -28,6 +28,7 @@ class Robot():
         rospy.sleep(1)
 
         #call Astar here
+        Astar()
         
         #call MDP here
         Mdp()
