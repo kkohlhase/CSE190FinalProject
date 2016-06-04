@@ -49,6 +49,7 @@ class Mdp():
 			queue_size=10)
 
 		#set up grid
+		print 'Starting MDP'
 		self.populateGrids()
 
 		for k in range(0, self.maxIterations):
@@ -78,7 +79,7 @@ class Mdp():
 
 			self.rewardGrid = deepcopy(self.newRewardGrid)
 
-			print "finished updating policy", k, self.policyGrid1D, self.rewardGrid, self.newRewardGrid
+			#print "finished updating policy", k, self.policyGrid1D, self.rewardGrid, self.newRewardGrid
 
 
 		#publish

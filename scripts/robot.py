@@ -7,6 +7,7 @@
 
 import rospy
 from mdp import Mdp
+from astar import Astar
 from std_msgs.msg import Bool
 
 
