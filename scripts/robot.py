@@ -29,7 +29,7 @@ class Robot():
         rospy.sleep(1)
 
         #call Astar here
-        Astar()
+        #Astar()
         
         #call MDP here
         Mdp()

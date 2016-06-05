@@ -7,6 +7,7 @@ from read_config import read_config
 import numpy
 from cse_190_assi_3.msg import *
 from copy import deepcopy
+import pprint
 
 class Mdp():
 
@@ -22,6 +23,8 @@ class Mdp():
 		self.probMoveBackwards = self.config['prob_move_backward']
 		self.probMoveLeftOfIntended = self.config['prob_move_left']
 		self.probMoveRightOfIntended = self.config['prob_move_right']
+		self.probMoveUpOfIntended = self.config['prob_move_up']
+		self.probMoveDownOfIntended = self.config['prob_move_down']
 
 		self.discountFactor = self.config['discount_factor']
 
@@ -30,17 +33,20 @@ class Mdp():
 
 		self.numRows = self.config['map_size'][0]
 		self.numCols = self.config['map_size'][1]
+		self.numHeight = self.config['map_size'][2]
 
-		self.start = self.config['start'] #[2,0] for self.config1 - will always be 1D array... 1 coord
-		self.goal = self.config['goal'] #[0,3] for self.config1 - will always be 1D array
-		self.walls = self.config['walls'] #[1,1] for self.config1, will be a 2d array for self.configs 2/3...multiple coords
-		self.pits = self.config['pits'] #[1,3] for self.config1, will be a 2d array for self.configs 2/3
+		self.start = self.config['start'] #[2,0,0] for self.config1 - 
+		self.goal = self.config['goal'] #[0,3,2] for self.config1 - 
+		print self.goal[0], self.goal[1], self.goal[2]
+		self.walls = self.config['walls'] #[1,1,0][2,0,1][0,3,1] for self.config1,
+		self.pits = self.config['pits'] #[1,3,0] for self.config1, 
 
-		self.numPossibleMoves = len(self.config['move_list']) #should be 4 in all self.configs
+		self.numPossibleMoves = len(self.config['move_list']) #should be 6 in all self.configs
 
-		self.originalGrid =[[0 for x in range(self.numCols)] for y in range(self.numRows)]
-		self.rewardGrid =[[0 for x in range(self.numCols)] for y in range(self.numRows)]
-		self.policyGrid =[["" for x in range(self.numCols)] for y in range(self.numRows)]
+		self.originalGrid =[[[0 for x in range(self.numHeight)] for y in range(self.numCols)] for z in range(self.numRows)]
+		pprint.pprint(self.originalGrid)
+		self.rewardGrid =[[[0 for x in range(self.numHeight)] for y in range(self.numCols)] for z in range(self.numRows)]
+		self.policyGrid =[[["" for x in range(self.numHeight)] for y in range(self.numCols)] for z in range(self.numRows)]
 
 
 		self.policyList_publisher = rospy.Publisher(
@@ -52,17 +58,19 @@ class Mdp():
 		print 'Starting MDP'
 		self.populateGrids()
 
-		for k in range(0, self.maxIterations):
+		for l in range(0, self.maxIterations):
 			#calculate the first value iteration
 			self.newRewardGrid = deepcopy(self.rewardGrid)
 			for i in range(0, self.numRows):
 				for j in range(0, self.numCols):
-					self.policyGrid[i][j] = self.calculateMaxVStar(i, j)
+					for k in range(0, self.numHeight):
+						self.policyGrid[i][j][k] = self.calculateMaxVStar(i, j, k)
 
 			self.policyGrid1D = []
 			for row in self.policyGrid:
 				for col in row:
-					self.policyGrid1D.append(col)
+					for height in col:
+						self.policyGrid1D.append(height)
 
 			policyList = PolicyList()
 			policyList.data = self.policyGrid1D
@@ -72,78 +80,115 @@ class Mdp():
 			sumOfDifferences = 0
 			for m in range(0, self.numRows):
 				for n in range(0, self.numCols):
-					sumOfDifferences = sumOfDifferences + abs(self.newRewardGrid[m][n] - self.rewardGrid[m][n])
+					for o in range(0, self.numHeight):
+						sumOfDifferences = sumOfDifferences + abs(self.newRewardGrid[m][n][o] - self.rewardGrid[m][n][o])
 
 			if sumOfDifferences < self.thresholdDifference:
 				return
 
 			self.rewardGrid = deepcopy(self.newRewardGrid)
 
-			#print "finished updating policy", k, self.policyGrid1D, self.rewardGrid, self.newRewardGrid
+			print "finished updating policy", l, self.policyGrid1D
 
-
+		pprint.pprint(self.policyGrid)
 		#publish
 
 		#update original grid with new values
 
 		#repeat until convergence or reached maximum number of iterations
 
-	def calculateVStar(self,x,y, direction):
+	def calculateVStar(self,x,y,z, direction):  #just this left to edit
 		#calculate previous values
-		hitEdgeOfMapCorrect = False
+		hitEdgeOfMapForward = False
 		hitEdgeOfMapBackward = False
 		hitEdgeOfMapLeft = False
 		hitEdgeOfMapRight = False
-		if(direction == 'N'):
-			correctX = x-1
-			if correctX < 0:
-				correctX = correctX + 1
-				hitEdgeOfMapCorrect = True
-			correctY = y
+		hitEdgeOfMapUp = False
+		hitEdgeOfMapDown = False
+		if(direction == 'F'):
+			forwardX = x-1
+			if forwardX < 0:
+				forwardX = forwardX + 1
+				hitEdgeOfMapForward = True
+			forwardY = y
+			forwardZ = z
 			backwardX = x+1
 			if backwardX >= self.numRows:
 				backwardX = backwardX - 1
 				hitEdgeOfMapBackward = True
 			backwardY = y
+			backwardZ = z
 			leftX = x
 			leftY = y-1
+			leftZ = z
 			if leftY < 0:
 				leftY = leftY + 1
 				hitEdgeOfMapLeft = True
 			rightX = x
 			rightY = y+1
+			rightZ = z
 			if rightY >= self.numCols:
 				rightY = rightY - 1
 				hitEdgeOfMapRight = True
-		elif(direction == 'S'):
-			correctX = x+1
-			if correctX >= self.numRows:
-				correctX = correctX - 1
-				hitEdgeOfMapCorrect = True
-			correctY = y
+			upX = x
+			upY = y
+			upZ = z+1
+			if upZ >= self.numHeight:
+				upZ = upZ - 1
+				hitEdgeOfMapUp = True
+			downX = x
+			downY = y
+			downZ = z-1
+			if downZ < 0:
+				downZ = downZ + 1
+				hitEdgeOfMapDown = True
+		elif(direction == 'B'):
+			forwardX = x+1
+			if forwardX >= self.numRows:
+				forwardX = forwardX - 1
+				hitEdgeOfMapForward = True
+			forwardY = y
+			forwardZ = z
 			backwardX = x-1
 			if backwardX < 0:
 				backwardX = backwardX + 1
 				hitEdgeOfMapBackward = True
 			backwardY = y
+			backwardZ = z
 			leftX = x
 			leftY = y+1
+			leftZ = z
 			if leftY >= self.numCols:
 				leftY = leftY - 1
 				hitEdgeOfMapLeft = True
 			rightX = x
 			rightY = y-1
+			rightZ = z
 			if rightY < 0:
 				rightY = rightY + 1
 				hitEdgeOfMapRight = True
-		elif(direction == 'W'):
-			correctX = x
-			correctY = y-1
-			if correctY < 0:
-				correctY = correctY + 1
-				hitEdgeOfMapCorrect = True
+			upX = x
+			upY = y
+			upZ = z+1
+			if upZ >= self.numHeight:
+				upZ = upZ - 1
+				hitEdgeOfMapUp = True
+			downX = x
+			downY = y
+			downZ = z-1
+			if downZ < 0:
+				downZ = downZ + 1
+				hitEdgeOfMapDown = True
+		elif(direction == 'L'):
+			forwardX = x
+			forwardY = y-1
+			forwardZ = z
+			if forwardY < 0:
+				forwardY = forwardY + 1
+				hitEdgeOfMapForward = True
 			backwardX = x
 			backwardY = y+1
+			backwardZ = z
 			if backwardY >= self.numCols:
 				backwardY = backwardY - 1
 				hitEdgeOfMapBackward = True
@@ -152,19 +197,35 @@ class Mdp():
 				leftX = leftX - 1
 				hitEdgeOfMapLeft = True
 			leftY = y
+			leftZ = z
 			rightX = x-1
 			if rightX < 0:
 				rightX = rightX + 1
 				hitEdgeOfMapRight = True
 			rightY = y
-		elif(direction == 'E'):
-			correctX = x
-			correctY = y+1
-			if correctY >= self.numCols:
-				correctY = correctY - 1
-				hitEdgeOfMapCorrect = True
+			rightZ = z
+			upX = x
+			upY = y
+			upZ = z+1
+			if upZ >= self.numHeight:
+				upZ = upZ - 1
+				hitEdgeOfMapUp = True
+			downX = x
+			downY = y
+			downZ = z-1
+			if downZ < 0:
+				downZ = downZ + 1
+				hitEdgeOfMapDown = True
+		elif(direction == 'R'):
+			forwardX = x
+			forwardY = y+1
+			forwardZ = z
+			if forwardY >= self.numCols:
+				forwardY = forwardY - 1
+				hitEdgeOfMapForward = True
 			backwardX = x
 			backwardY = y-1
+			backwardZ = z
 			if backwardY < 0:
 				backwardY = backwardY + 1
 				hitEdgeOfMapBackward = True
@@ -173,67 +234,175 @@ class Mdp():
 				leftX = leftX + 1
 				hitEdgeOfMapLeft = True
 			leftY = y
+			leftZ = z
 			rightX = x+1
 			if rightX >= self.numRows:
 				rightX = rightX - 1
 				hitEdgeOfMapRight = True
 			rightY = y
+			rightZ = z
+			upX = x
+			upY = y
+			upZ = z+1
+			if upZ >= self.numHeight:
+				upZ = upZ - 1
+				hitEdgeOfMapUp = True
+			downX = x
+			downY = y
+			downZ = z-1
+			if downZ < 0:
+				downZ = downZ + 1
+				hitEdgeOfMapDown = True
+		elif(direction == 'U'):
+			forwardX = x
+			forwardY = y
+			forwardZ = z+1
+			if forwardZ >= self.numHeight:
+				forwardZ = forwardZ - 1
+				hitEdgeOfMapUp = True
+			backwardX = x
+			backwardY = y
+			backwardZ = z-1
+			if backwardZ < 0:
+				backwardZ = backwardZ + 1
+				hitEdgeOfMapDown = True
+			leftX = x
+			leftY = y-1
+			leftZ = z
+			if leftY < 0:
+				leftY = leftY + 1
+				hitEdgeOfMapLeft = True
+			rightX = x
+			rightY = y+1
+			rightZ = z
+			if rightY >= self.numCols:
+				rightY = rightY - 1
+				hitEdgeOfMapRight = True
+			upX = x+1
+			upY = y
+			upZ = z
+			if upX >= self.numRows:
+				upX = upX - 1
+				hitEdgeOfMapUp = True
+			downX = x-1
+			downY = y
+			downZ = z
+			if downX < 0:
+				downX = downX + 1
+				hitEdgeOfMapDown = True
+		elif(direction == 'D'):
+			forwardX = x
+			forwardY = y
+			forwardZ = z-1
+			if forwardZ < 0:
+				forwardZ = forwardZ + 1
+				hitEdgeOfMapUp = True
+			backwardX = x
+			backwardY = y
+			backwardZ = z+1
+			if backwardZ >= self.numHeight:
+				backwardZ = backwardZ - 1
+				hitEdgeOfMapDown = True
+			leftX = x
+			leftY = y-1
+			leftZ = z
+			if leftY < 0:
+				leftY = leftY + 1
+				hitEdgeOfMapLeft = True
+			rightX = x
+			rightY = y+1
+			rightZ = z
+			if rightY >= self.numCols:
+				rightY = rightY - 1
+				hitEdgeOfMapRight = True
+			upX = x-1
+			upY = y
+			upZ = z
+			if upX < 0:
+				upX = upX + 1
+				hitEdgeOfMapUp = True
+			downX = x+1
+			downY = y
+			downZ = z
+			if downX >= self.numRows:
+				downX = downX - 1
+				hitEdgeOfMapDown = True
 		else:
 			print 'ERROR something wrong with direction'
 
-		if self.originalGrid[correctX][correctY] == -1:
-			correctX = x
-			correctY = y
-			hitEdgeOfMapCorrect = True
+		if self.originalGrid[forwardX][forwardY][forwardZ] == -1:
+			forwardX = x
+			forwardY = y
+			forwardZ = z
+			hitEdgeOfMapForward = True
 
-		if self.originalGrid[backwardX][backwardY] == -1:
+		if self.originalGrid[backwardX][backwardY][backwardZ] == -1:
 			backwardX = x
 			backwardY = y
+			backwardZ = z
 			hitEdgeOfMapBackward = True
 
-		if self.originalGrid[leftX][leftY] == -1:
+		if self.originalGrid[leftX][leftY][leftZ] == -1:
 			leftX = x
 			leftY = y
+			leftZ = z
 			hitEdgeOfMapLeft = True
 
-		if self.originalGrid[rightX][rightY] == -1:
+		if self.originalGrid[rightX][rightY][rightZ] == -1:
 			rightX = x
 			rightY = y
+			rightZ = z
 			hitEdgeOfMapRight = True
 
-		VStarMoveCorrect = self.probMoveCorrect * (self.calculateReward(correctX, correctY, hitEdgeOfMapCorrect) + (self.discountFactor*self.rewardGrid[correctX][correctY]))
-		VStarMoveBackwards = self.probMoveBackwards * (self.calculateReward(backwardX, backwardY, hitEdgeOfMapBackward) + (self.discountFactor*self.rewardGrid[backwardX][backwardY]))
-		VStarMoveLeft = self.probMoveLeftOfIntended * (self.calculateReward(leftX, leftY, hitEdgeOfMapLeft) + (self.discountFactor*self.rewardGrid[leftX][leftY]))
-		VStarMoveRight = self.probMoveRightOfIntended * (self.calculateReward(rightX, rightY, hitEdgeOfMapRight) + (self.discountFactor*self.rewardGrid[rightX][rightY]))
+		if self.originalGrid[upX][upY][upZ] == -1:
+			upX = x
+			upY = y
+			upZ = z
+			hitEdgeOfMapUp = True
 
-		VStar = VStarMoveCorrect + VStarMoveBackwards + VStarMoveLeft + VStarMoveRight
+		if self.originalGrid[downX][downY][downZ] == -1:
+			downX = x
+			downY = y
+			downZ = z
+			hitEdgeOfMapDown = True
+
+		VStarMoveForward = self.probMoveCorrect * (self.calculateReward(forwardX, forwardY, forwardZ, hitEdgeOfMapForward) + (self.discountFactor*self.rewardGrid[forwardX][forwardY][forwardZ]))
+		VStarMoveBackwards = self.probMoveBackwards * (self.calculateReward(backwardX, backwardY, backwardZ, hitEdgeOfMapBackward) + (self.discountFactor*self.rewardGrid[backwardX][backwardY][backwardZ]))
+		VStarMoveLeft = self.probMoveLeftOfIntended * (self.calculateReward(leftX, leftY, leftZ, hitEdgeOfMapLeft) + (self.discountFactor*self.rewardGrid[leftX][leftY][leftZ]))
+		VStarMoveRight = self.probMoveRightOfIntended * (self.calculateReward(rightX, rightY, rightZ, hitEdgeOfMapRight) + (self.discountFactor*self.rewardGrid[rightX][rightY][rightZ]))
+		VStarMoveUp = self.probMoveUpOfIntended * (self.calculateReward(upX, upY, upZ, hitEdgeOfMapUp) + (self.discountFactor*self.rewardGrid[upX][upY][upZ]))
+		VStarMoveDown = self.probMoveDownOfIntended * (self.calculateReward(downX, downY, downZ, hitEdgeOfMapDown) + (self.discountFactor*self.rewardGrid[downX][downY][downZ]))
+
+		VStar = VStarMoveForward + VStarMoveBackwards + VStarMoveLeft + VStarMoveRight + VStarMoveUp + VStarMoveDown
 
 		return VStar
 
 		#need to check if it is in the grid or if it is a wall/pit/goal
 
 
-	def calculateMaxVStar(self,x,y):
-		VstarArray = [0 for v in range (4)]
-		direction = ["" for z in range(4)]
-		direction[0] = "N"
-		direction[1] = "S"
-		direction[2] = "W"
-		direction[3] = "E"
+	def calculateMaxVStar(self,x,y,z):
+		VstarArray = [0 for e in range (6)]
+		direction = ["" for f in range(6)]
+		direction[0] = "U" #up
+		direction[1] = "D" #down
+		direction[2] = "F" #forward
+		direction[3] = "B" #backward
+		direction[4] = "L" #left
+		direction[5] = "R" #right
 
-		if self.originalGrid[x][y] == -1:
+		if self.originalGrid[x][y][z] == -1:
 			return "WALL"
-		if self.originalGrid[x][y] == -10:
+		if self.originalGrid[x][y][z] == -10:
 			return "PIT"
-		if self.originalGrid[x][y] == 10:
+		if self.originalGrid[x][y][z] == 10:
 			return "GOAL"
 
 		for i in range(0, self.numPossibleMoves):
-			VstarArray[i] = self.calculateVStar(x,y, direction[i])
+			VstarArray[i] = self.calculateVStar(x,y,z, direction[i])
 
 		maxVStar = numpy.amax(VstarArray)
 
-		self.newRewardGrid[x][y] = maxVStar
+		self.newRewardGrid[x][y][z] = maxVStar
 
 		if maxVStar == VstarArray[0]:
 			return direction[0]
@@ -247,34 +416,40 @@ class Mdp():
 		if maxVStar == VstarArray[3]:
 			return direction[3]
 
+		if maxVStar == VstarArray[4]:
+			return direction[4]
+
+		if maxVStar == VstarArray[5]:
+			return direction[5]
+
 
 		
 
 	def populateGrids(self):
 		#0 is normal space, 10 is goal, -1 is obstacle, -10 is pit
 		
-		self.originalGrid[self.goal[0]][self.goal[1]] = 10
-		self.rewardGrid[self.goal[0]][self.goal[1]] = self.goalCost
+		self.originalGrid[self.goal[0]][self.goal[1]][self.goal[2]] = 10
+		self.rewardGrid[self.goal[0]][self.goal[1]][self.goal[2]] = self.goalCost
 
-		for x,y in self.walls:
-			self.originalGrid[x][y] = -1
-			self.rewardGrid[x][y] = self.wallCost
+		for x,y,z in self.walls:
+			self.originalGrid[x][y][z] = -1
+			self.rewardGrid[x][y][z] = self.wallCost
 
-		for w,z in self.pits:
-			self.originalGrid[w][z] = -10
-			self.rewardGrid[w][z] = self.pitCost
+		for a,b,c in self.pits:
+			self.originalGrid[a][b][c] = -10
+			self.rewardGrid[a][b][c] = self.pitCost
 
 
-	def calculateReward(self, x, y, hitEdgeOfMap):
+	def calculateReward(self, x, y, z, hitEdgeOfMap):
 		reward = 0
 
-		if self.originalGrid[x][y] == -1  or hitEdgeOfMap:
+		if self.originalGrid[x][y][z] == -1  or hitEdgeOfMap:
 			reward = reward + self.wallCost
-		elif self.originalGrid[x][y] == -10:
+		elif self.originalGrid[x][y][z] == -10:
 			reward = reward + self.pitCost + self.stepCost
-		elif self.originalGrid[x][y] == 10:
+		elif self.originalGrid[x][y][z] == 10:
 			reward = reward + self.goalCost + self.stepCost
-		elif self.originalGrid[x][y] == 0:
+		elif self.originalGrid[x][y][z] == 0:
 			reward = reward + self.stepCost
 		else:
 			print "ERROR with rewards"
