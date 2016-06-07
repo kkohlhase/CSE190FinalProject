@@ -50,5 +50,6 @@
   "prob_move_up": 0.05,
   "prob_move_down": 0.05,
 
+
   "generate_video": 0
 }
