@@ -1,0 +1,54 @@
+{
+  "move_list": [
+    [0, 1, 0],
+    [0, -1, 0],
+    [1, 0, 0],
+    [-1, 0, 0],
+    [0, 0, 1],
+    [0, 0, -1]
+  ],
+  "map_size": [3, 4, 5],
+  "start": [2, 0, 0],
+  "goal": [0, 2, 4],
+  "walls": [
+    [1, 1, 0],
+    [2, 0, 1],
+    [0, 0, 3],
+    [0, 1, 3],
+    [0, 3, 3],
+    [1, 0, 3],
+    [1, 1, 3],
+    [1, 2, 3],
+    [1, 3, 3],
+    [2, 0, 3],
+    [2, 1, 3],
+    [2, 2, 3],
+    [2, 3, 3],
+    [0, 3, 1]
+  ],
+  "pits": [
+    [1, 3, 0]
+  ],
+
+  "max_iterations": 20,
+  "threshold_difference": 0.00001,
+
+
+  "reward_for_each_step": -0.05,
+  "reward_for_each_up_step": -0.5,
+  "reward_for_each_down_step": 0.5,
+  "reward_for_hitting_wall": -5.0,
+  "reward_for_reaching_goal": 1000.0,
+  "reward_for_falling_in_pit": -10.0,
+
+  "discount_factor": 0.99,
+
+  "prob_move_forward": 0.8,
+  "prob_move_backward": 0.0,
+  "prob_move_left": 0.05,
+  "prob_move_right": 0.05,
+  "prob_move_up": 0.05,
+  "prob_move_down": 0.05,
+
+  "generate_video": 0
+}
